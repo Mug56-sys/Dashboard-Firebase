@@ -4,7 +4,6 @@ import { getAuth,createUserWithEmailAndPassword } from "firebase/auth";
 import { app } from "../utils/Firebase"; 
 
 export default function Register({
-  isLogged,
   setIsLogged,
 }: {
   isLogged: boolean | null;

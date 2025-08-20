@@ -11,6 +11,11 @@ import Login from './pages/Login'
 function App() {
 const [isLogged,setIsLogged]=useState<boolean | null>(null)
 const navigate=useNavigate()
+
+useEffect(()=>{
+  console.log(isLogged)
+},[isLogged])
+
 useEffect(()=>{
   console.log(location.pathname)
 if(location.pathname==='/'){
@@ -20,9 +25,9 @@ if(location.pathname==='/'){
 
   return (
     <>
-    <Nav/>
+    <Nav setIsLogged={setIsLogged} isLogged={isLogged}/>
     <Routes>
-      <Route path='/home' element={ <Home />}/>
+      <Route path='/home' element={ <Home isLogged={isLogged}/>}/>
       <Route path='*' element={<NotFound/>}/>
       <Route path='/register' element={<Register isLogged={isLogged} setIsLogged={setIsLogged}/>}/>
       <Route path='/login' element={<Login isLogged={isLogged} setIsLogged={setIsLogged}/>}/>
