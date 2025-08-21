@@ -4,11 +4,11 @@ import { app } from "../utils/Firebase";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 export default function Login({
-  isLogged,
   setIsLogged,
+  setUserId
 }: {
-  isLogged: boolean | null;
   setIsLogged: React.Dispatch<React.SetStateAction<boolean | null>>;
+  setUserId:React.Dispatch<React.SetStateAction<string>>
 }) {
   const auth = getAuth(app);
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ export default function Login({
     signInWithEmailAndPassword(auth, login, password)
       .then((userCred) => {
         console.log(userCred);
+        setUserId(userCred.user.uid)
         setIsLogged(true)
         navigate("/home");
       })

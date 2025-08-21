@@ -3,9 +3,11 @@ import { useNavigate } from "react-router";
 export default function Nav({
   setIsLogged,
   isLogged,
+  setUserId
 }: {
   setIsLogged: React.Dispatch<React.SetStateAction<boolean | null>>;
   isLogged: boolean | null;
+  setUserId: React.Dispatch<React.SetStateAction<string>>
 }) {
   const navigate = useNavigate();
 
@@ -47,6 +49,7 @@ export default function Nav({
             onClick={() => {
               navigate("/login");
               setIsLogged(false);
+              setUserId('')
             }}
           >
             Log Off

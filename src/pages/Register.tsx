@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth,createUserWithEmailAndPassword } from "firebase/auth";
-import { app } from "../utils/Firebase"; 
+import { getAuth, createUserWithEmailAndPassword,type User } from "firebase/auth";
+import { app, db } from "../utils/Firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function Register({
   setIsLogged,
+  setUserId
 }: {
   isLogged: boolean | null;
   setIsLogged: React.Dispatch<React.SetStateAction<boolean | null>>;
+  setUserId: React.Dispatch<React.SetStateAction<string>>
 }) {
-  const auth=getAuth(app)
+  const auth = getAuth(app);
   const navigate = useNavigate();
   const [register, setRegister] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -25,18 +28,27 @@ export default function Register({
     if (password === "" || register === "") return;
     if (password.length < 8) return;
 
-    createUserWithEmailAndPassword(auth,register,password).then((userCred)=>{
-      const user=userCred.user
-      console.log(user);
-      setIsLogged(true)
-      navigate("/home");
-    }).catch((e)=>{
-      alert('Error while registering: '+e.message)
-      return;
-    })
-    setRegister('')
-    setPassword('')
-    
+    createUserWithEmailAndPassword(auth, register, password)
+      .then((userCred) => {
+        const user = userCred.user;
+        console.log(user);
+        const AddData = async (user:User) => {
+          setUserId(user.uid)
+          await setDoc(doc(db, "users", user.uid), {
+            email: user.email,
+            tasks:[]
+          });
+        };
+        AddData(user);
+        setIsLogged(true);
+        navigate("/home");
+      })
+      .catch((e) => {
+        alert("Error while registering: " + e.message);
+        return;
+      });
+    setRegister("");
+    setPassword("");
   };
   useEffect(() => {
     emailRef.current?.focus();
@@ -65,7 +77,7 @@ export default function Register({
         className="border rounded-lg p-1 text-base"
         placeholder="Email..."
         onChange={(e) => setRegister(e.target.value)}
-         onKeyDown={(e) => handleKeyDown(e, passwordRef)}
+        onKeyDown={(e) => handleKeyDown(e, passwordRef)}
       />
       {!register.includes("@") && register !== "" ? (
         <p className="text-red-600 text-sm">Provide real Email</p>
@@ -90,7 +102,7 @@ export default function Register({
         onClick={(e) => {
           handleSubmit(e);
         }}
-         onKeyDown={(e) => {
+        onKeyDown={(e) => {
           if (e.key === "Enter") handleSubmit(e);
         }}
       >
