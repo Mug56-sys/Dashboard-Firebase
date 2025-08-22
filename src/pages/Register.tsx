@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth, createUserWithEmailAndPassword,type User } from "firebase/auth";
+import { getAuth,signInWithPopup,GoogleAuthProvider, createUserWithEmailAndPassword,type User, } from "firebase/auth";
 import { app, db } from "../utils/Firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import GoogleButton from '../assets/GoogleButton.png'
+
 
 export default function Register({
   setIsLogged,
@@ -12,6 +14,7 @@ export default function Register({
   setIsLogged: React.Dispatch<React.SetStateAction<boolean | null>>;
   setUserId: React.Dispatch<React.SetStateAction<string>>
 }) {
+  const provider = new GoogleAuthProvider();
   const auth = getAuth(app);
   const navigate = useNavigate();
   const [register, setRegister] = useState<string>("");
@@ -34,10 +37,14 @@ export default function Register({
         console.log(user);
         const AddData = async (user:User) => {
           setUserId(user.uid)
-          await setDoc(doc(db, "users", user.uid), {
+          const isExisting=await getDoc(doc(db, "users", user.uid))
+          if(!isExisting.exists()){
+            await setDoc(doc(db, "users", user.uid), {
             email: user.email,
             tasks:[]
           });
+          }
+          
         };
         AddData(user);
         setIsLogged(true);
@@ -66,6 +73,33 @@ export default function Register({
       nextRef.current?.focus();
     }
   };
+
+  const handleGoogleReg=()=>{
+    signInWithPopup(auth, provider)
+  .then(async(result) => {
+    const user = result.user;
+    
+    const AddData = async (user:User) => {
+          setUserId(user.uid)
+          const isExisting=await getDoc(doc(db, "users", user.uid))
+          if(!isExisting.exists()){
+            await setDoc(doc(db, "users", user.uid), {
+            email: user.email,
+            tasks:[]
+          });
+          }
+          
+        };
+        AddData(user);
+        setIsLogged(true)
+        navigate('/home')
+  }).catch((e) => {
+    console.log(e)
+  });
+
+  }
+
+
   return (
     <div className="bg-gray-100 text-2xl min-w-1/3  mt-5 border rounded-xl p-5 grid flex justify-self-center gap-y-2">
       <span className="text-5xl font-bold justify-self-center">Register</span>
@@ -96,9 +130,10 @@ export default function Register({
           Passwords need to be longer than 8 characters
         </p>
       ) : null}
+      <div className="flex">
       <button
         ref={submitRef}
-        className="bg-blue-500 justify-self-left w-1/4 p-1 text-base rounded-lg text-white cursor-pointer"
+        className="bg-blue-500 justify-self-left w-1/4 p-1 text-lg rounded-lg text-white cursor-pointer h-[45px] hover:bg-blue-600"
         onClick={(e) => {
           handleSubmit(e);
         }}
@@ -108,6 +143,19 @@ export default function Register({
       >
         Register
       </button>
+       <button
+        className=" ml-5 w-1/4 p-[1px]  cursor-pointer min-w-[200px   min-h-[45px]"
+        
+         onClick={() => {
+          handleGoogleReg();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleGoogleReg();
+        }}
+      >
+        <img src={GoogleButton} className="min-w-[200px] p-[2px] rounded-lg hover:bg-gray-500"/>
+      </button>
+        </div>
       {password === "" || register === "" ? (
         <p className="text-red-600 text-sm">Provide all data</p>
       ) : null}
