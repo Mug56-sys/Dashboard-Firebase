@@ -44,8 +44,9 @@ export default function Nav({
             </button>
           </>
         ) : (
+          <>
           <button
-            className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200 w-3/4"
+            className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
             onClick={() => {
               navigate("/login");
               setIsLogged(false);
@@ -54,7 +55,13 @@ export default function Nav({
           >
             Log Off
           </button>
-        )}
+          <button className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
+          onClick={()=>{
+            navigate('/chats')
+          }}>
+            Chats
+          </button>
+        </>)}
       </div>
     </div>
   );

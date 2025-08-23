@@ -74,7 +74,7 @@ export default function Register({
     }
   };
 
-  const handleGoogleReg=()=>{
+  const handleGoogleReg=async()=>{
     signInWithPopup(auth, provider)
   .then(async(result) => {
     const user = result.user;

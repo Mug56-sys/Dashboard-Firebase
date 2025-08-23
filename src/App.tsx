@@ -7,6 +7,7 @@ import Nav from "./components/Nav";
 import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import Chats from "./pages/Chats";
 
 function App() {
   const [userId, setUserId] = useState<string>("");
@@ -38,6 +39,9 @@ function App() {
           path="/login"
           element={<Login  setUserId={setUserId} setIsLogged={setIsLogged} />}
         />
+        <Route
+        path="/chats"
+        element={<Chats/>}/>
       </Routes>
     </>
   );
