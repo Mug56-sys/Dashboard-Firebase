@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { app } from "../utils/Firebase";
+import { app,db } from "../utils/Firebase";
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import GoogleButton from '../assets/GoogleButton.png'
 
@@ -91,6 +91,7 @@ export default function Login({
       <span className="text-xl font-semibold">Password</span>
       <input
         ref={passwordRef}
+        type="password"
         className="border rounded-lg p-1 text-base"
         placeholder="Password..."
         value={password}
@@ -113,7 +114,7 @@ export default function Login({
           if (e.key === "Enter") handleSubmit(e);
         }}
       >
-        Register
+        Login
       </button>
        <button
         className=" ml-5 w-1/4 p-[1px]  cursor-pointer min-w-[200px   min-h-[45px]"

@@ -40,7 +40,8 @@ export default function Register({
           const isExisting=await getDoc(doc(db, "users", user.uid))
           if(!isExisting.exists()){
             await setDoc(doc(db, "users", user.uid), {
-            email: user.email,
+            email: user.email?.toLowerCase(),
+            displayName: user.displayName || "",
             tasks:[]
           });
           }
@@ -84,7 +85,8 @@ export default function Register({
           const isExisting=await getDoc(doc(db, "users", user.uid))
           if(!isExisting.exists()){
             await setDoc(doc(db, "users", user.uid), {
-            email: user.email,
+            email: user.email?.toLowerCase(),
+            displayName: user.displayName || "",
             tasks:[]
           });
           }
@@ -120,6 +122,7 @@ export default function Register({
       <input
         ref={passwordRef}
         value={password}
+        type="password"
         className="border rounded-lg p-1 text-base"
         placeholder="Password..."
         onChange={(e) => setPassword(e.target.value)}

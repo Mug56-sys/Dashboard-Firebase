@@ -8,11 +8,31 @@ import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Chats from "./pages/Chats";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { app } from "./utils/Firebase";
 
 function App() {
   const [userId, setUserId] = useState<string>("");
   const [isLogged, setIsLogged] = useState<boolean | null>(null);
+  const [userEmail,setUserEmail]=useState<string>('')
   const navigate = useNavigate();
+
+
+  useEffect(()=>{
+    const auth=getAuth(app)
+    const unsubscribe=onAuthStateChanged(auth,(user)=>{
+      if(user){
+        setUserId(user.uid)
+        setUserEmail(user.email || '')
+        setIsLogged(true)
+      }else{
+        setUserId('')
+        setUserEmail('')
+        setIsLogged(false)
+      }
+    });
+    return ()=>unsubscribe()
+  })
 
   useEffect(() => {
     console.log(isLogged);
@@ -27,7 +47,7 @@ function App() {
 
   return (
     <>
-      <Nav setIsLogged={setIsLogged} isLogged={isLogged} setUserId={setUserId} />
+      <Nav isLogged={isLogged}  />
       <Routes>
         <Route path="/home" element={<Home isLogged={isLogged} userId={userId} />} />
         <Route path="*" element={<NotFound />} />
@@ -41,7 +61,7 @@ function App() {
         />
         <Route
         path="/chats"
-        element={<Chats/>}/>
+        element={<Chats userId={userId} userEmail={userEmail} isLogged={isLogged}/>}/>
       </Routes>
     </>
   );

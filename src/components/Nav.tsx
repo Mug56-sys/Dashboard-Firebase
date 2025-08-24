@@ -1,15 +1,19 @@
 import { useNavigate } from "react-router";
+import { getAuth, signOut } from "firebase/auth";
+import { app } from "../utils/Firebase";
 
-export default function Nav({
-  setIsLogged,
-  isLogged,
-  setUserId
-}: {
-  setIsLogged: React.Dispatch<React.SetStateAction<boolean | null>>;
-  isLogged: boolean | null;
-  setUserId: React.Dispatch<React.SetStateAction<string>>
-}) {
+export default function Nav({ isLogged }: { isLogged: boolean | null }) {
   const navigate = useNavigate();
+  const auth = getAuth(app);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   return (
     <div className="grid  grid-cols-2 bg-gray-500 border-b-[3px] py-5 text-2xl px-3 ">
@@ -45,23 +49,22 @@ export default function Nav({
           </>
         ) : (
           <>
-          <button
-            className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
-            onClick={() => {
-              navigate("/login");
-              setIsLogged(false);
-              setUserId('')
-            }}
-          >
-            Log Off
-          </button>
-          <button className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
-          onClick={()=>{
-            navigate('/chats')
-          }}>
-            Chats
-          </button>
-        </>)}
+            <button
+              className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
+              onClick={handleLogout}
+            >
+              Log Off
+            </button>
+            <button
+              className="bg-white cursor-pointer px-3 font-bold rounded-lg text-lg hover:bg-gray-200"
+              onClick={() => {
+                navigate("/chats");
+              }}
+            >
+              Chats
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
