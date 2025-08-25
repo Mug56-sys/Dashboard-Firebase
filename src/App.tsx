@@ -49,7 +49,7 @@ function App() {
     <>
       <Nav isLogged={isLogged}  />
       <Routes>
-        <Route path="/home" element={<Home isLogged={isLogged} userId={userId} />} />
+        <Route path="/home" element={<Home isLogged={isLogged} userId={userId} userEmail={userEmail} />} />
         <Route path="*" element={<NotFound />} />
         <Route
           path="/register"
