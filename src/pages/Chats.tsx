@@ -496,7 +496,7 @@ export default function Chats({
       console.log("Task document created successfully");
 
       const taskMessageData = {
-        text: `📋 Task: ${taskText}`,
+        text: `Task: ${taskText}`,
         senderId: userId,
         senderEmail: userEmail,
         chatId: selectedChat.id,
@@ -515,7 +515,7 @@ export default function Chats({
       await setDoc(
         doc(db, "chats", selectedChat.id),
         {
-          lastMessage: `📋 Task: ${taskText}`,
+          lastMessage: `Task: ${taskText}`,
           lastMessageTime: serverTimestamp(),
           updatedAt: serverTimestamp(),
         },
@@ -536,31 +536,41 @@ export default function Chats({
     return chat.participantEmails.find((email) => email !== userEmail) || "Unknown";
   };
 
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return { emoji: '⏳', color: 'text-yellow-700', bg: 'bg-yellow-100', border: 'border-yellow-300' };
+      case 'finished':
+        return { emoji: '✅', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-300' };
+      case 'deleted':
+        return { emoji: '🗑️', color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300' };
+      default:
+        return { emoji: '⏳', color: 'text-yellow-700', bg: 'bg-yellow-100', border: 'border-yellow-300' };
+    }
+  };
+
   const renderMessage = (message: Message) => {
     const isOwn = message.senderId === userId;
     
     if (message.type === 'task') {
+      const statusDisplay = getStatusDisplay(message.taskData?.status || 'pending');
       return (
         <div
           key={message.id}
           className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
         >
           <div
-            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg border-2 ${
-              isOwn
-                ? "bg-blue-100 border-blue-300 text-blue-800"
-                : "bg-yellow-100 border-yellow-300 text-yellow-800"
-            }`}
+            className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg border-2 ${statusDisplay.bg} ${statusDisplay.border}`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">📋</span>
-              <span className="font-semibold">TASK</span>
+              <span className={`font-bold text-sm ${statusDisplay.color}`}>TASK</span>
+              <span className={`text-xs px-2 py-1 rounded ${statusDisplay.bg} ${statusDisplay.color}`}>
+                {statusDisplay.emoji} {message.taskData?.status || 'pending'}
+              </span>
             </div>
-            <p className="text-sm mt-1">{message.taskData?.taskText}</p>
-            <p className="text-xs mt-2 opacity-75">
-              Status: {message.taskData?.status || 'pending'}
-            </p>
-            <p className="text-xs mt-1 opacity-75">
+            <p className="text-sm font-medium text-gray-800 mb-2">{message.taskData?.taskText}</p>
+            <p className="text-xs opacity-75 text-gray-600">
               {message.timestamp
                 ? new Date(message.timestamp.toDate()).toLocaleTimeString()
                 : "Sending..."}
@@ -576,7 +586,7 @@ export default function Chats({
           key={message.id}
           className="flex justify-center"
         >
-          <div className="bg-gray-200 px-4 py-2 rounded-lg text-gray-700 text-sm text-center">
+          <div className="bg-blue-100 border border-blue-200 px-4 py-2 rounded-lg text-blue-800 text-sm text-center max-w-md">
             <span className="italic">{message.text}</span>
             <p className="text-xs mt-1 opacity-75">
               {message.timestamp
@@ -627,7 +637,7 @@ export default function Chats({
           <input
             type="text"
             className="bg-white border rounded-lg m-3 text-black text-lg p-1 w-64"
-            placeholder="🔍 Search by email..."
+            placeholder="Search by email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
