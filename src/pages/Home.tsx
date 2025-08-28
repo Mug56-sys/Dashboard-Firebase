@@ -50,6 +50,7 @@ export default function Home({
   const [selectedTab, setSelectedTab] = useState<"personal" | "received">(
     "personal"
   );
+  const [newTaskNotifications, setNewTaskNotifications] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -75,6 +76,28 @@ export default function Home({
       tasksQuery,
       (snapshot) => {
         const tasksData: ReceivedTask[] = [];
+        const newTaskIds: string[] = [];
+        
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const taskData = change.doc.data();
+            const createdAt = taskData.createdAt?.toDate() || new Date();
+            const timeDiff = new Date().getTime() - createdAt.getTime();
+            
+            if (timeDiff < 10000) { 
+              newTaskIds.push(change.doc.id);
+              
+              if (Notification.permission === 'granted') {
+                new Notification("New Task Received", {
+                  body: `New task from ${taskData.fromUserEmail}: "${taskData.task}"`,
+                  icon: "/favicon.ico",
+                  tag: `task-${change.doc.id}`
+                });
+              }
+            }
+          }
+        });
+
         snapshot.docs.forEach((docSnap) => {
           const data = docSnap.data() || {};
           tasksData.push({
@@ -89,12 +112,23 @@ export default function Home({
             updatedAt: data.updatedAt || null,
           });
         });
+        
         tasksData.sort((a, b) => {
           const aTime = a.createdAt?.toDate?.() || new Date(0);
           const bTime = b.createdAt?.toDate?.() || new Date(0);
           return bTime.getTime() - aTime.getTime();
         });
+        
         setReceivedTasks(tasksData);
+        
+        if (newTaskIds.length > 0) {
+          setNewTaskNotifications(prev => [...prev, ...newTaskIds]);
+          setTimeout(() => {
+            setNewTaskNotifications(prev => 
+              prev.filter(id => !newTaskIds.includes(id))
+            );
+          }, 5000);
+        }
       },
       (error) => {
         console.error("Error listening to tasks:", error);
@@ -235,6 +269,16 @@ export default function Home({
 
       try {
         const added = await addDoc(collection(db, "messages"), updateMessageData);
+        
+        if (Notification.permission === 'granted') {
+          setTimeout(() => {
+            new Notification("Task Updated", {
+              body: `Task "${taskText}" marked as ${newStatus}`,
+              icon: "/favicon.ico",
+              tag: `task-update-${taskId}`
+            });
+          }, 100);
+        }
       } catch (err: any) {
         console.error("Failed to add task_update message. Error:", err?.code, err?.message || err);
         throw err;
@@ -378,7 +422,37 @@ export default function Home({
   }
 
   return (
-    <div className="flex justify-self-center w-4/5 mt-3 border rounded-lg grid grid-row m-2">
+    <div className="flex justify-self-center w-4/5 mt-3 border rounded-lg grid grid-row m-2 relative">
+      {newTaskNotifications.length > 0 && (
+        <div className="absolute top-4 right-4 z-50 space-y-2">
+          {newTaskNotifications.slice(0, 3).map((taskId) => {
+            const task = receivedTasks.find(t => t.id === taskId);
+            return task ? (
+              <div
+                key={taskId}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse border-2 border-blue-300"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📋</span>
+                  <div className="text-sm">
+                    <div className="font-bold">New Task!</div>
+                    <div className="text-xs opacity-90">From: {task.fromUserEmail}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNewTaskNotifications(prev => prev.filter(id => id !== taskId));
+                    }}
+                    className="ml-2 text-white hover:bg-blue-600 rounded px-1"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ) : null;
+          })}
+        </div>
+      )}
+
       <div className="border-b">
         <span className="text-3xl p-1 font-bold text-center w-full block border-b">Dashboard</span>
         <div className="flex">
@@ -391,12 +465,17 @@ export default function Home({
             📝 Personal Tasks ({tasks.length})
           </button>
           <button
-            className={`flex-1 p-3 text-lg font-semibold transition-colors ${
+            className={`flex-1 p-3 text-lg font-semibold transition-colors relative ${
               selectedTab === "received" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
             onClick={() => setSelectedTab("received")}
           >
             📋 Received Tasks ({visibleTasks.length})
+            {pendingTasks.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center font-bold">
+                {pendingTasks.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -501,12 +580,21 @@ export default function Home({
               <div className="space-y-3">
                 {visibleTasks.map((receivedTask) => {
                   const statusDisplay = getStatusDisplay(receivedTask.status);
+                  const isNewTask = newTaskNotifications.includes(receivedTask.id);
                   return (
-                    <div key={receivedTask.id} className={`border-2 rounded-lg p-4 ${statusDisplay.bg} ${statusDisplay.border}`}>
+                    <div 
+                      key={receivedTask.id} 
+                      className={`border-2 rounded-lg p-4 ${statusDisplay.bg} ${statusDisplay.border} ${isNewTask ? 'ring-2 ring-blue-400 ring-opacity-75' : ''}`}
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">📋</span>
                           <span className="font-semibold text-gray-800">Task from {receivedTask.fromUserEmail}</span>
+                          {isNewTask && (
+                            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
+                              NEW!
+                            </span>
+                          )}
                         </div>
                         <span className={`text-sm px-2 py-1 rounded ${statusDisplay.bg} ${statusDisplay.color} font-medium`}>
                           {statusDisplay.emoji} {statusDisplay.label}

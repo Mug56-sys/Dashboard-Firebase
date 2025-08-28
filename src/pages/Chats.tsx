@@ -12,6 +12,7 @@ import {
   setDoc,
   getDoc,
   limit,
+  updateDoc,
 } from "firebase/firestore";
 import { db, messaging } from "../utils/Firebase";
 import { getToken, onMessage } from "firebase/messaging";
@@ -44,6 +45,7 @@ type Chat = {
   participantEmails: string[];
   lastMessage?: string;
   lastMessageTime?: any;
+  lastReadBy?: { [userId: string]: any };
   updatedAt: any;
 };
 
@@ -77,6 +79,7 @@ export default function Chats({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [showTaskInput, setShowTaskInput] = useState<boolean>(false);
   const [newTask, setNewTask] = useState<string>("");
+  const [unreadCounts, setUnreadCounts] = useState<{[chatId: string]: number}>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -225,6 +228,7 @@ export default function Chats({
             participantEmails: data.participantEmails || [],
             lastMessage: data.lastMessage,
             lastMessageTime: data.lastMessageTime,
+            lastReadBy: data.lastReadBy || {},
             updatedAt: data.updatedAt || data.createdAt,
           } as Chat);
         });
@@ -237,6 +241,58 @@ export default function Chats({
         
         console.log("Setting chats:", chatsData);
         setChats(chatsData);
+        
+        const calculateUnreadCounts = async () => {
+          const counts: {[chatId: string]: number} = {};
+          
+          for (const chat of chatsData) {
+            const userLastRead = chat.lastReadBy?.[userId];
+            
+            if (userLastRead && chat.lastMessageTime) {
+              const lastMessageTime = chat.lastMessageTime?.toDate?.() || chat.lastMessageTime;
+              const lastReadTime = userLastRead?.toDate?.() || userLastRead;
+              
+              if (lastMessageTime > lastReadTime) {
+                try {
+                  const messagesQuery = query(
+                    collection(db, "messages"),
+                    where("chatId", "==", chat.id),
+                    where("senderId", "!=", userId),
+                    orderBy("timestamp", "desc")
+                  );
+                  
+                  const messagesSnapshot = await getDocs(messagesQuery);
+                  let unreadCount = 0;
+                  
+                  messagesSnapshot.forEach((messageDoc) => {
+                    const messageData = messageDoc.data();
+                    const messageTime = messageData.timestamp?.toDate() || new Date(0);
+                    
+                    if (messageTime > lastReadTime) {
+                      unreadCount++;
+                    }
+                  });
+                  
+                  counts[chat.id] = unreadCount;
+                } catch (error) {
+                  console.error("Error calculating unread count for chat:", chat.id, error);
+                  counts[chat.id] = 0;
+                }
+              } else {
+                counts[chat.id] = 0;
+              }
+            } else if (chat.lastMessageTime) {
+             
+              counts[chat.id] = 1; 
+            } else {
+              counts[chat.id] = 0;
+            }
+          }
+          
+          setUnreadCounts(counts);
+        };
+        
+        calculateUnreadCounts();
       },
       (error) => {
         console.error("Error listening to chats:", error);
@@ -250,6 +306,7 @@ export default function Chats({
               participantEmails: data.participantEmails || [],
               lastMessage: data.lastMessage,
               lastMessageTime: data.lastMessageTime,
+              lastReadBy: data.lastReadBy || {},
               updatedAt: data.updatedAt || data.createdAt,
             } as Chat);
           });
@@ -280,6 +337,18 @@ export default function Chats({
     }
 
     console.log("Setting up message listener for chat:", selectedChat.id);
+
+    const markChatAsRead = async () => {
+      try {
+        await updateDoc(doc(db, "chats", selectedChat.id), {
+          [`lastReadBy.${userId}`]: serverTimestamp()
+        });
+      } catch (error) {
+        console.error("Error marking chat as read:", error);
+      }
+    };
+
+    markChatAsRead();
 
     const messagesQuery = query(
       collection(db, "messages"),
@@ -317,6 +386,8 @@ export default function Chats({
         
         console.log("Setting messages:", messagesData.length, "messages");
         setMessages(messagesData);
+        
+        markChatAsRead();
       },
       (error) => {
         console.error("Error listening to messages:", error);
@@ -353,7 +424,7 @@ export default function Chats({
       console.log("Cleaning up message listener");
       unsubscribe();
     };
-  }, [selectedChat]);
+  }, [selectedChat, userId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -383,6 +454,10 @@ export default function Chats({
         const chatData = {
           participants: [userId, otherUser.uid],
           participantEmails: [userEmail, otherUser.email],
+          lastReadBy: {
+            [userId]: serverTimestamp(),
+            [otherUser.uid]: null
+          },
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
@@ -392,6 +467,7 @@ export default function Chats({
           id: chatRef.id,
           participants: [userId, otherUser.uid],
           participantEmails: [userEmail, otherUser.email],
+          lastReadBy: {},
           updatedAt: new Date(),
         };
         setSelectedChat(newChat);
@@ -442,11 +518,22 @@ export default function Chats({
           lastMessage: messageText,
           lastMessageTime: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          [`lastReadBy.${userId}`]: serverTimestamp()
         },
         { merge: true }
       );
 
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
+
+      if (Notification.permission === 'granted') {
+        setTimeout(() => {
+          new Notification("Message Sent", {
+            body: `Sent: "${messageText}"`,
+            icon: "/favicon.ico",
+            tag: `sent-${docRef.id}`
+          });
+        }, 100);
+      }
 
     } catch (error) {
       console.error("Error sending message:", error);
@@ -518,6 +605,7 @@ export default function Chats({
           lastMessage: `Task: ${taskText}`,
           lastMessageTime: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          [`lastReadBy.${userId}`]: serverTimestamp()
         },
         { merge: true }
       );
@@ -525,6 +613,16 @@ export default function Chats({
       setNewTask("");
       setShowTaskInput(false);
       console.log("Task sent successfully");
+
+      if (Notification.permission === 'granted') {
+        setTimeout(() => {
+          new Notification("Task Sent", {
+            body: `Sent task: "${taskText}" to ${recipientEmail}`,
+            icon: "/favicon.ico",
+            tag: `task-${taskId}`
+          });
+        }, 100);
+      }
 
     } catch (error) {
       console.error("Error sending task:", error);
@@ -690,16 +788,21 @@ export default function Chats({
             chats.map((chat) => (
               <div
                 key={chat.id}
-                className={`border-b p-3 cursor-pointer hover:bg-gray-300 ${
+                className={`border-b p-3 cursor-pointer hover:bg-gray-300 relative ${
                   selectedChat?.id === chat.id ? "bg-blue-100" : ""
                 }`}
                 onClick={() => setSelectedChat(chat)}
               >
                 <div className="font-semibold text-sm">
                   {getOtherParticipantEmail(chat)}
+                  {unreadCounts[chat.id] > 0 && (
+                    <span className="ml-2 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 inline-flex font-bold">
+                      {unreadCounts[chat.id] > 99 ? '99+' : unreadCounts[chat.id]}
+                    </span>
+                  )}
                 </div>
                 {chat.lastMessage && (
-                  <div className="text-xs text-gray-600 truncate mt-1">
+                  <div className={`text-xs truncate mt-1 ${unreadCounts[chat.id] > 0 ? 'font-bold text-black' : 'text-gray-600'}`}>
                     {chat.lastMessage}
                   </div>
                 )}
